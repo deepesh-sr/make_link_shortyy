@@ -1,7 +1,9 @@
 use std::error::Error;
 
-use axum::routing::{get, Route};
+use axum::routing::get;
 use axum::Router;
+use axum_prometheus::PrometheusMetricLayer;
+use tower_http::trace::TraceLayer;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
 
@@ -23,11 +25,17 @@ async fn main()-> Result<(),Box<dyn Error>> {
     .with(tracing_subscriber::fmt::layer())  // Formats log messages nicely for console output (human-readable format)
     .init();  // Activates the logging system (makes it the global logger)
 
+    // adding prometheus integraion 
+        // prometheus helps in understanding how our server is working , memory usage, site visits etc.
+    let (prometheus_layer , metric_handle) = PrometheusMetricLayer::pair();
     //creating a new route
     let app = Router::new()
-            .route("/health", get(health));
+            .route("/metric", get(|| async move {metric_handle.render()}))
+            .route("/health", get(health))
+            .layer(TraceLayer::new_for_http())
+            .layer(prometheus_layer);
 
-    let listener = tokio::net::TcpListener::bind("0.0.0.3000")
+    let listener = tokio::net::TcpListener::bind("0.0.0.0:3000")
             .await
             .expect("Couldnot initialise TCPlisnter");
 
