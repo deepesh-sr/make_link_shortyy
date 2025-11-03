@@ -1,1 +1,15 @@
 /target
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+postgres_data/
+db_data/
+
+# Environment variables
+.env
+.env.local
+
+# Logs
+*.log
