@@ -3,6 +3,7 @@ use std::error::Error;
 use axum::routing::get;
 use axum::Router;
 use axum_prometheus::PrometheusMetricLayer;
+use sqlx::postgres::PgPoolOptions;
 use tower_http::trace::TraceLayer;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
@@ -12,7 +13,10 @@ mod routes;
 
 #[tokio::main]
 async fn main()-> Result<(),Box<dyn Error>> {
-    
+
+    //setup dotenvy 
+    dotenvy::dotenv()?;
+
     // Setup logging system for our application (tracing subscriber)
     // This helps us see what's happening in our code when it runs
     
@@ -24,6 +28,26 @@ async fn main()-> Result<(),Box<dyn Error>> {
     )
     .with(tracing_subscriber::fmt::layer())  // Formats log messages nicely for console output (human-readable format)
     .init();  // Activates the logging system (makes it the global logger)
+
+    let database_url = std::env::var("DATABASE_URL").expect("Provide URL");
+    // Add database connection 
+    let pool = PgPoolOptions::new()
+        .max_connections(20)
+        .connect(&database_url).await?;
+    // "CREATE TABLE books(title VARCHAR(50) owner VARCHAR(50)), INSERT INTO books(title,owner) VALUE("Dp","Hey"), SELECT * FROM books
+
+    // let books = sqlx::query!(
+    //    "
+    //    CREATE TABLE books(title VARCHAR(50) owner VARCHAR(50))
+    //    INSERT INTO books(title,owner) VALUE(value1,value2)
+    //     SELECT * FROM books",
+    // )
+
+    // sqlx::query("CREATE TABLE testbook(title VARCHAR(50), owner VARCHAR(50));").execute(&pool).await?;
+    // sqlx::query("INSERT INTO testbook(title,owner) VALUES($1,$2)").bind("Hello Rust").bind("VXV").execute(&pool).await?;
+    let row = sqlx::query("SELECT * FROM testbook").fetch_all(&pool).await?;
+
+    println!("{row:?}");
 
     // adding prometheus integraion 
         // prometheus helps in understanding how our server is working , memory usage, site visits etc.
