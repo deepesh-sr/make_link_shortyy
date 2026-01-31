@@ -10,7 +10,7 @@ use tracing_subscriber::util::SubscriberInitExt;
 
 use crate::routes::health;
 mod routes;
-
+// mod utils;
 #[tokio::main]
 async fn main()-> Result<(),Box<dyn Error>> {
 
@@ -57,7 +57,8 @@ async fn main()-> Result<(),Box<dyn Error>> {
             .route("/metric", get(|| async move {metric_handle.render()}))
             .route("/health", get(health))
             .layer(TraceLayer::new_for_http())
-            .layer(prometheus_layer);
+            .layer(prometheus_layer)
+            .with_state(pool);
 
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3000")
             .await
