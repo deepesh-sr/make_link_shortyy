@@ -10,6 +10,7 @@ use tracing_subscriber::util::SubscriberInitExt;
 
 use crate::routes::health;
 mod routes;
+mod crud;
 // mod utils;
 #[tokio::main]
 async fn main()-> Result<(),Box<dyn Error>> {

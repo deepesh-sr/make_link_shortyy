@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        UPDATE links\n        SET click_count = click_count + 1\n        WHERE short_code = $1\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "c321d505a9f8b53196961de6faa69165222811c67eeccb5743ce826360bb6271"
+}
