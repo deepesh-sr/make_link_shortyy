@@ -358,6 +358,7 @@ dependencies = [
  "dotenvy",
  "metrics",
  "metrics-exporter-prometheus",
+ "rand 0.9.2",
  "serde",
  "sqlx",
  "tokio",

@@ -1,6 +1,6 @@
 use std::error::Error;
 
-use axum::routing::get;
+use axum::routing::{get, post};
 use axum::Router;
 use axum_prometheus::PrometheusMetricLayer;
 use sqlx::postgres::PgPoolOptions;
@@ -8,10 +8,9 @@ use tower_http::trace::TraceLayer;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
 
-use crate::routes::health;
+use crate::routes::{health, shorten_link, redirect_to_url};
 mod routes;
 mod crud;
-// mod utils;
 #[tokio::main]
 async fn main()-> Result<(),Box<dyn Error>> {
 
@@ -30,52 +29,47 @@ async fn main()-> Result<(),Box<dyn Error>> {
     .with(tracing_subscriber::fmt::layer())  // Formats log messages nicely for console output (human-readable format)
     .init();  // Activates the logging system (makes it the global logger)
 
-    let database_url = std::env::var("DATABASE_URL").expect("Provide URL");
+    let database_url = std::env::var("DATABASE_URL").expect("DATABASE_URL must be set");
+    
     // Add database connection 
     let pool = PgPoolOptions::new()
         .max_connections(20)
-        .connect(&database_url).await?;
-    // "CREATE TABLE books(title VARCHAR(50) owner VARCHAR(50)), INSERT INTO books(title,owner) VALUE("Dp","Hey"), SELECT * FROM books
+        .connect(&database_url)
+        .await?;
 
-    // let books = sqlx::query!(
-    //    "
-    //    CREATE TABLE books(title VARCHAR(50) owner VARCHAR(50))
-    //    INSERT INTO books(title,owner) VALUE(value1,value2)
-    //     SELECT * FROM books",
-    // )
+    tracing::info!("Database connection established");
 
-    // sqlx::query("CREATE TABLE testbook(title VARCHAR(50), owner VARCHAR(50));").execute(&pool).await?;
-    // sqlx::query("INSERT INTO testbook(title,owner) VALUES($1,$2)").bind("Hello Rust").bind("VXV").execute(&pool).await?;
-    let row = sqlx::query("SELECT * FROM testbook").fetch_all(&pool).await?;
-
-    println!("{row:?}");
-
-    // adding prometheus integraion 
-        // prometheus helps in understanding how our server is working , memory usage, site visits etc.
-    let (prometheus_layer , metric_handle) = PrometheusMetricLayer::pair();
-    //creating a new route
+    // adding prometheus integration 
+    // prometheus helps in understanding how our server is working, memory usage, site visits etc.
+    let (prometheus_layer, metric_handle) = PrometheusMetricLayer::pair();
+    
+    // creating routes for the link shortener
     let app = Router::new()
-            .route("/metric", get(|| async move {metric_handle.render()}))
-            .route("/health", get(health))
-            .layer(TraceLayer::new_for_http())
-            .layer(prometheus_layer)
-            .with_state(pool);
+        .route("/metrics", get(|| async move { metric_handle.render() }))
+        .route("/health", get(health))
+        .route("/shorten", post(shorten_link))  // POST /shorten - Create shortened link
+        .route("/{code}", get(redirect_to_url))  // GET /{code} - Redirect to original URL
+        .layer(TraceLayer::new_for_http())
+        .layer(prometheus_layer)
+        .with_state(pool);
 
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3000")
-            .await
-            .expect("Couldnot initialise TCPlisnter");
+        .await
+        .expect("Could not initialize TCP listener");
 
-    // log print the local address ( IP address + PORT )
-    tracing::debug!(
-        "listening on {}",listener
+    let addr = listener
         .local_addr()
-        .expect("could not convert listner address to local address")
-    );
+        .expect("Could not get local address");
 
-    //creating the server
+    // Log server startup
+    tracing::info!("🚀 Link shortener server listening on http://{}", addr);
+    tracing::info!("📊 Metrics available at http://{}/metrics", addr);
+    tracing::info!("❤️  Health check at http://{}/health", addr);
+
+    // Creating the server
     axum::serve(listener, app)
         .await
-        .expect("Could not succesfully create server");
+        .expect("Could not successfully create server");
 
     Ok(())
 }
